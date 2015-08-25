@@ -11,43 +11,51 @@ app.run(['$ionicPlatform', function($ionicPlatform) {
   });
 }]);
 
-app.factory('PouchDBProvider', ['pouchDB', function (pouchDB) {
-  var db = null;
-  var changeCallback = function() {};
-  var initializeDB = function() {
-    db = pouchDB('todos');
-    var remoteCouch = 'http://192.168.0.115:5984/todos';
-    db.replicate.to(remoteCouch, {live: true});
-    db.replicate.from(remoteCouch, {live: true});
+// #####################################################
+// Alterar as constantes abaixo para os devidos valores.
+// #####################################################
+app.constant('COUCHDB_URL', 'http://localhost:5984');
+app.constant('COUCHDB_COLLECTION', 'todos');
 
-    db.changes({
-      since: 'now',
-      live: true
-    }).on('change', function() {
-      changeCallback();
-    });
-  };
 
-  var onChangeCallback = function(callback) {
-    changeCallback = callback;
-  }
 
-  var save = function(doc, callback) {
-    db.put(doc, callback);
-  };
+app.factory('PouchDBProvider', ['pouchDB', 'COUCHDB_URL', 'COUCHDB_COLLECTION',
+  function (pouchDB, COUCHDB_URL, COUCHDB_COLLECTION) {
+    var db = null;
+    var changeCallback = function() {};
+    var initializeDB = function() {
+      db = pouchDB(COUCHDB_COLLECTION);
+      db.replicate.to(COUCHDB_URL, {live: true});
+      db.replicate.from(COUCHDB_URL, {live: true});
 
-  var findAll = function(callback) {
-    db.allDocs({include_docs: true, descending: true}, function(err, results) {
-      callback(err, results.rows.map(function(row) {return row.doc}));
-    });
-  };
+      db.changes({
+        since: 'now',
+        live: true
+      }).on('change', function() {
+        changeCallback();
+      });
+    };
 
-  initializeDB();
-  return {
-    onChangeCallback: onChangeCallback,
-    save: save,
-    findAll: findAll
-  };
+    var onChangeCallback = function(callback) {
+      changeCallback = callback;
+    }
+
+    var save = function(doc, callback) {
+      db.put(doc, callback);
+    };
+
+    var findAll = function(callback) {
+      db.allDocs({include_docs: true, descending: true}, function(err, results) {
+        callback(err, results.rows.map(function(row) {return row.doc}));
+      });
+    };
+
+    initializeDB();
+    return {
+      onChangeCallback: onChangeCallback,
+      save: save,
+      findAll: findAll
+    };
 }])
 
 app.controller('ExampleController', ['$scope', '$ionicPopup', 'PouchDBProvider',
